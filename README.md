@@ -2,7 +2,7 @@
 
 ## Description
 
-A decentralized application (DApp) that enhances transparency, traceability, and trust in supply chain management using blockchain technology. Built on Ethereum, the system records every product's journey — from manufacturer to end consumer — on an immutable, shared ledger using smart contracts.
+A decentralized application (DeCap) that enhances transparency, traceability, and trust in supply chain management using blockchain technology. Built on Ethereum, the system records every product's journey — from manufacturer to end consumer — on an immutable, shared ledger using smart contracts.
 
 ### Key Features
 - **Transparency**: Every stakeholder can verify the origin and movement of goods in real time.
