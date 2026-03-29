@@ -14,7 +14,7 @@ A decentralized application (DeCap) that enhances transparency, traceability, an
 
 The system is composed of three main layers:
 
-1. **Frontend (DApp Interface)** – A React-based web application that allows supply chain actors (manufacturers, suppliers, retailers, regulators, consumers) to interact with the system.
+1. **Frontend (DeCap Interface)** – A React-based web application that allows supply chain actors (manufacturers, suppliers, retailers, regulators, consumers) to interact with the system.
 2. **Smart Contracts** – Solidity contracts deployed on Ethereum that handle product registration, ownership transfer, verification, and payment.
 3. **Blockchain Layer (Ethereum)** – Stores all immutable transaction records emitted by the smart contracts.
 
@@ -44,7 +44,7 @@ The system is composed of three main layers:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/blockchain-supply-chain.git
+git clone https://github.com/Ushnesha/blockchain-supplychain-provenance.git
 cd blockchain-supply-chain
 ```
 
