@@ -14,7 +14,7 @@ A decentralized application (DecAp) that enhances transparency, traceability, an
 
 The system is composed of three main layers:
 
-1. **Frontend (DeCap Interface)** – A React-based web application that allows supply chain actors (manufacturers, suppliers, retailers, regulators, consumers) to interact with the system.
+1. **Frontend (DecAp Interface)** – A React-based web application that allows supply chain actors (manufacturers, suppliers, retailers, regulators, consumers) to interact with the system.
 2. **Smart Contracts** – Solidity contracts deployed on Ethereum that handle product registration, ownership transfer, verification, and payment.
 3. **Blockchain Layer (Ethereum)** – Stores all immutable transaction records emitted by the smart contracts.
 
