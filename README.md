@@ -4,7 +4,7 @@
 
 A decentralized application (DecAp) that enhances transparency, traceability, and trust in supply chain management using blockchain technology. Built on Ethereum, the system records every product's journey — from manufacturer to end consumer — on an immutable, shared ledger using smart contracts.
 
-### Core Goals (from proposal)
+### Objective
 | Goal | How It's Achieved |
 |------|------------------|
 | **Transparency** | All stakeholders can verify product origin and movement via `getProvenance()` |
