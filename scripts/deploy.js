@@ -27,7 +27,7 @@ async function main() {
   await escrow.waitForDeployment();
   console.log("PaymentEscrow deployed to:", await escrow.getAddress());
 
-  console.log("\n✅ All contracts deployed. Update frontend/src/config.js with these addresses.");
+  console.log("\n All contracts deployed. Update frontend/src/config.js with these addresses.");
 }
 
 main()
