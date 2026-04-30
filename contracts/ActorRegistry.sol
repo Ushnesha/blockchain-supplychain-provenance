@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: MIT
 // actor deployed addr: 0xF0a42AEF20B3Eacb644a62863fC1D6fb69CeA880
+
+/**
+*ex supplier address: 0x38e2A7be53955081AD5996BaDb7fd5e841e25ffF
+* this is connected to
+*1: string: name Gavin Shool 2: string: location Arizona State University 3: uint8: role 2 4: bool: isActive true 5: uint256: registeredAt 1777537726
+* / 
+
+//
 pragma solidity ^0.8.20;
 
 /**
