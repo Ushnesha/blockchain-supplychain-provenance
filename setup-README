@@ -1,0 +1,35 @@
+Important links:
+
+//online IDE where I deployed contracts
+https://remix.ethereum.org/#lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js
+
+//to get poly tokens for transactions (to this wallet addr: 0x38e2A7be53955081AD5996BaDb7fd5e841e25ffF) 
+https://faucet.polygon.technology/
+
+//Testnet, useful for checking if transactions were made and if contracts correctly added to blockchain
+https://amoy.polygonscan.com/
+
+//ex for address i added, a new actor (Gavin, School, #2), you can check transaction history
+https://amoy.polygonscan.com/address/0xF0a42AEF20B3Eacb644a62863fC1D6fb69CeA880
+
+//wallet for blockchain use, connect to Remix IDE in order to use funding from faucet for transactions
+https://metamask.io/
+
+
+I signed up with my school email for all of these, gfiedler@asu.edu, if it was needed.
+Steps I did:
+1. Create metamask wallet, but since i connected and my wallet address above for poly, just input this should be fine)
+2. Request tokens from faucet, needed to connect an X (twitter) accnt (used school email), then asked for..
+..a bulk of 10 poly, this took an hour to get support to complete ticket. Could take up 24/hrs 
+3. Open Remix, Copy pasted the contracts into respective files. (So Actor file into a new created contract file named Actor_remix lets say)
+4. REQUIRED: Compile each file, UI on remix is easy enough to follow its on left side. ..
+.. TO DO ON YOUR END: You should be able to copy the addresses i pasted in each file, go to deployment for each..
+.. contract, and theres a "DEPLOYED CONTRACTS" at bottom. Paste these addresses in the respective ones (it doesn't matter but helps w/ naming scheme)
+5. Functions were tested by making one transaction and calling each "Blue" (as remix has) function. These HAVE NO COST. ..
+.. ORANGE functions DO COST poly, I am sitting at 9.789 currently which should be enough for >50 calls if needed. 
+
+TO DO: 
+1. Add the addresses to the code locally/GitHub, compile and run. Ensure you copy and paste the correct addresses in the right places
+2. Your IDE will show errors if there is anything missing, should. I was unable to test this earlier today but can once I get home tmr
+
+I believe i covered it all but can explain the rest if not during call.
