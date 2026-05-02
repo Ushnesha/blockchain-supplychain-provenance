@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
-// deployed paymentEscrow addr: 0x6353E62Ef67DAfc513e9eFF9De48E1c9E0cDC3A1
 pragma solidity ^0.8.20;
+interface IActorRegistry {
+    function isAuthorized(address wallet) external view returns (bool);
+    function getActorRole(address wallet) external view returns (uint8);
+}
 
 /**
  * @title PaymentEscrow
@@ -75,6 +78,7 @@ contract PaymentEscrow {
 
     /// @notice Contract admin — resolves disputes and manages arbitration.
     address public immutable owner;
+    IActorRegistry public actorRegistry;
 
     /// @notice Primary escrow registry: maps escrow ID → Escrow struct.
     ///         Escrow records are never deleted; resolved ones retain their history.
@@ -179,10 +183,10 @@ contract PaymentEscrow {
      * @notice Deploys the PaymentEscrow contract.
      * @dev Sets the deployer as the immutable owner/arbitrator.
      */
-    constructor() {
-        owner = msg.sender;
+    constructor(address registryAddress) {
+    owner = msg.sender;
+    actorRegistry = IActorRegistry(registryAddress);
     }
-
     // ═══════════════════════════════════════════════════════════
     // SECTION 6 — CORE ESCROW FUNCTIONS
     // ═══════════════════════════════════════════════════════════
@@ -217,6 +221,8 @@ contract PaymentEscrow {
         require(seller != address(0),    "PaymentEscrow: seller cannot be the zero address");
         require(seller != msg.sender,    "PaymentEscrow: buyer and seller cannot be the same address");
         require(productEscrow[productId] == 0, "PaymentEscrow: an active escrow already exists for this product");
+        require(actorRegistry.isAuthorized(msg.sender), "buyer not authorized");
+        require(actorRegistry.isAuthorized(seller), "seller not authorized");
 
         _escrowCounter++;
         escrowId = _escrowCounter;
@@ -267,7 +273,9 @@ contract PaymentEscrow {
         uint256 amount = e.amount;
 
         // INTERACT: transfer funds to seller
-        e.seller.transfer(amount);
+        (bool success, ) = e.seller.call{value: amount}("");
+        require(success, "PaymentEscrow: ETH transfer failed");
+
 
         emit FundsReleased(escrowId, e.seller, amount);
     }
@@ -317,23 +325,32 @@ contract PaymentEscrow {
         escrowExists(escrowId)
     {
         Escrow storage e = escrows[escrowId];
-        require(e.status == EscrowStatus.Disputed, "PaymentEscrow: escrow is not in Disputed status");
+        require(
+            e.status == EscrowStatus.Disputed,
+            "PaymentEscrow: escrow is not in Disputed status"
+        );
 
-        // EFFECT: update state before transferring ETH (CEI pattern)
+        // EFFECT
         e.resolvedAt = block.timestamp;
-        productEscrow[e.productId] = 0;  // Clear active escrow slot
+        productEscrow[e.productId] = 0;
 
         uint256 amount = e.amount;
 
         if (releaseFunds) {
-            // Admin decides: delivery was valid — pay the seller
             e.status = EscrowStatus.Released;
-            e.seller.transfer(amount);
+
+            // INTERACTION (safe call)
+            (bool success, ) = e.seller.call{value: amount}("");
+            require(success, "PaymentEscrow: ETH transfer to seller failed");
+
             emit FundsReleased(escrowId, e.seller, amount);
         } else {
-            // Admin decides: delivery failed — refund the buyer
             e.status = EscrowStatus.Refunded;
-            e.buyer.transfer(amount);
+
+            // INTERACTION (safe call)
+            (bool success, ) = e.buyer.call{value: amount}("");
+            require(success, "PaymentEscrow: ETH refund failed");
+
             emit FundsRefunded(escrowId, e.buyer, amount);
         }
     }

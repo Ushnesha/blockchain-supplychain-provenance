@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
-// deployment addr: 0xc10aE5C29Eb8C1BC1bfC5ea332454554Db2F7BBb
 pragma solidity ^0.8.20;
+interface IActorRegistry {
+    function isAuthorized(address wallet) external view returns (bool);
+    function getActorRole(address wallet) external view returns (uint8);
+}
+
 
 /**
  * @title SupplyChain
@@ -117,11 +121,12 @@ contract SupplyChain {
 
     /// @notice Authorization registry: maps actor address → authorized flag.
     ///         Only authorized addresses may register products or receive transfers.
-    mapping(address => bool) public authorizedActors;
+    // mapping(address => bool) public authorizedActors; Not in use
 
     /// @notice Contract owner/admin — manages actor authorization.
     ///         Immutable after deployment; set to deployer address at construction.
     address public immutable owner;
+    IActorRegistry public actorRegistry;
 
     // ═══════════════════════════════════════════════════════════
     // SECTION 3 — EVENTS
@@ -184,7 +189,8 @@ contract SupplyChain {
      * @param actor      The address whose authorization changed.
      * @param authorized True if authorized, false if revoked.
      */
-    event ActorAuthorizationChanged(address indexed actor, bool authorized);
+     //not in use
+    // event ActorAuthorizationChanged(address indexed actor, bool authorized);
 
     // ═══════════════════════════════════════════════════════════
     // SECTION 4 — MODIFIERS (Access Control & Validation Guards)
@@ -201,8 +207,11 @@ contract SupplyChain {
     /// @dev Restricts to addresses granted authorization by the owner.
     ///      Unauthorized callers cannot register products or receive transfers.
     modifier onlyAuthorized() {
-        require(authorizedActors[msg.sender], "SupplyChain: caller is not authorized");
-        _;
+    require(
+        actorRegistry.isAuthorized(msg.sender),
+        "SupplyChain: caller is not authorized"
+    );
+    _;
     }
 
     /// @dev Validates that a product ID corresponds to a registered product.
@@ -241,10 +250,9 @@ contract SupplyChain {
      * @dev The deployer becomes the immutable owner and is auto-authorized
      *      so they can immediately register products during setup or testing.
      */
-    constructor() {
-        owner = msg.sender;
-        authorizedActors[msg.sender] = true;
-        emit ActorAuthorizationChanged(msg.sender, true);
+    constructor(address registryAddress) {
+    owner = msg.sender;
+    actorRegistry = IActorRegistry(registryAddress);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -263,12 +271,13 @@ contract SupplyChain {
      * @param actor  Ethereum address of the supply chain actor.
      * @param status True to authorize, false to revoke.
      */
-    function setActorAuthorization(address actor, bool status) external onlyOwner {
-        require(actor != address(0), "SupplyChain: cannot authorize zero address");
-        require(actor != owner || status, "SupplyChain: cannot de-authorize the contract owner");
-        authorizedActors[actor] = status;
-        emit ActorAuthorizationChanged(actor, status);
-    }
+     //not in use
+    // function setActorAuthorization(address actor, bool status) external onlyOwner {
+    //     require(actor != address(0), "SupplyChain: cannot authorize zero address");
+    //     require(actor != owner || status, "SupplyChain: cannot de-authorize the contract owner");
+    //     authorizedActors[actor] = status;
+    //     emit ActorAuthorizationChanged(actor, status);
+    // }
 
     // ═══════════════════════════════════════════════════════════
     // SECTION 7 — CORE SUPPLY CHAIN FUNCTIONS
@@ -294,6 +303,7 @@ contract SupplyChain {
      * @return productId The unique on-chain ID assigned to this product.
      */
     function registerProduct(
+        
         string calldata name,
         string calldata origin,
         string calldata batchId,
@@ -381,7 +391,7 @@ contract SupplyChain {
     {
         require(to != address(0),     "SupplyChain: cannot transfer to the zero address");
         require(to != msg.sender,     "SupplyChain: cannot transfer product to yourself");
-        require(authorizedActors[to], "SupplyChain: recipient is not an authorized actor");
+        require(actorRegistry.isAuthorized(to),"SupplyChain: recipient is not an authorized actor");
 
         Product storage p = products[productId];
         Stage oldStage       = p.stage;
