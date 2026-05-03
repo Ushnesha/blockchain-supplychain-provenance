@@ -33,7 +33,7 @@ async function main() {
   const escrowAddress = await escrow.getAddress(); //added for clarity when reading and passing values
   console.log("PaymentEscrow deployed to:", escrowAddress);
 
-  console.log("\n✅ All contracts deployed. Update frontend/src/config.js with these addresses.");
+  console.log("\n✅ All contracts deployed.");
 }
 
 

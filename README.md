@@ -1,280 +1,379 @@
 # Blockchain-Based Supply Chain Provenance System
 
-## Description
+## Executive Summary
 
-A decentralized application (DecAp) that enhances transparency, traceability, and trust in supply chain management using blockchain technology. Built on Ethereum, the system records every product's journey — from manufacturer to end consumer — on an immutable, shared ledger using smart contracts.
-
-### Objective
-| Goal | How It's Achieved |
-|------|------------------|
-| **Transparency** | All stakeholders can verify product origin and movement via `getProvenance()` |
-| **Traceability** | Products are tracked at every stage: `Manufactured → Shipped → InWarehouse → AtRetailer → Sold` |
-| **Security** | Data immutability: transfer records are append-only; no deletion functions exist |
-| **Automation** | `PaymentEscrow` automates payments between actors without intermediaries |
-
-### System Architecture
-
-The system is composed of three layers, as defined in the proposal:
-
-1. **Frontend (DecAp Interface)** — React + Web3.js web application for all supply chain actors (manufacturers, suppliers, retailers, regulators, consumers).
-2. **Smart Contracts** — Three Solidity contracts deployed on Ethereum handling product registration, ownership transfer, payment escrow, and identity management.
-3. **Blockchain Layer (Ethereum)** — Stores all immutable transaction records emitted by the smart contracts.
+A decentralized supply chain management system built on Ethereum that provides **complete transparency and immutable traceability** of products from manufacturer to end consumer. Using blockchain technology, this system eliminates fraud, counterfeiting, and ensures regulatory compliance throughout the entire supply chain.
 
 ---
 
-## Smart Contract Design
+## Problem Statement
 
-### Contracts Overview
+Traditional supply chains suffer from:
+- **Lack of Transparency**: No clear visibility into product movement and handling
+- **Counterfeit Risk**: Difficulty verifying product authenticity
+- **Trust Issues**: Multiple intermediaries with no unified source of truth
+- **Compliance Challenges**: Difficult audit trails for regulators
+- **Payment Disputes**: Trust issues when transferring goods between parties
 
-| Contract | Responsibility |
-|----------|---------------|
-| `SupplyChain.sol` | Core product registration, custody transfer, stage tracking, and provenance |
-| `ActorRegistry.sol` | Role-based identity management for all supply chain participants |
-| `PaymentEscrow.sol` | Automated ETH escrow for payments between supply chain actors |
+This project solves these by creating an **immutable, transparent ledger** of every product journey.
 
 ---
 
-### Data Structures
+## System Architecture
 
-#### `SupplyChain.sol` — Product
+### Three Core Smart Contracts
 
-The `Product` struct stores all information about a registered product:
+#### 1. **ActorRegistry** — Identity & Role Management
+**Purpose**: Central source of truth for all supply chain participants
 
-```solidity
-struct Product {
-    uint256 id;           // Unique on-chain identifier (auto-incremented)
-    string  name;         // Human-readable product name or SKU
-    string  origin;       // Geographic origin or manufacturing facility
-    string  batchId;      // Production batch/lot number for grouped tracking
-    string  metadata;     // JSON-encoded additional attributes (e.g., expiry, weight)
-    address manufacturer; // Ethereum address of the original manufacturer
-    address currentOwner; // Address of the current supply chain custodian
-    Stage   stage;        // Current lifecycle stage (see Stage enum)
-    uint256 registeredAt; // Block timestamp of first registration
-    uint256 updatedAt;    // Block timestamp of most recent state change
-    bool    exists;       // Guard flag preventing phantom-ID access
-}
-```
+**Key Features**:
+- Registers supply chain actors (manufacturers, suppliers, distributors, retailers, regulators)
+- Assigns and manages role-based access control
+- Maintains actor profiles (name, location, registration date)
+- Soft-delete mechanism: deactivate actors without erasing history
+- Immutable audit trail of all role changes
 
-The `Stage` enum enforces a strictly sequential product lifecycle:
+**Supported Roles**:
+- **Manufacturer**: Creates and registers new products
+- **Supplier**: Provides raw materials or components
+- **Distributor**: Moves goods between locations, operates warehouses
+- **Retailer**: Final point of sale, marks products as sold
+- **Regulator**: Read-only audit access for compliance verification
+
+---
+
+#### 2. **SupplyChain** — Core Product Tracking & Provenance
+**Purpose**: Records complete lifecycle and custody history of every product
+
+**Key Concepts**:
+
+**Product Lifecycle Stages** (Sequential Progression):
 ```
 Manufactured → Shipped → InWarehouse → AtRetailer → Sold
 ```
+- **Manufactured**: Product created and registered by manufacturer
+- **Shipped**: Product in transit (carrier custody)
+- **InWarehouse**: Product in distributor's warehouse
+- **AtRetailer**: Product arrived at retail point of sale
+- **Sold**: Terminal state — product sold to end consumer
 
-The `TransferRecord` struct forms the immutable, append-only provenance chain:
-```solidity
-struct TransferRecord {
-    address from;       // Previous custodian (address(0) for genesis entry)
-    address to;         // Receiving custodian
-    Stage   stage;      // Stage at time of this record
-    uint256 timestamp;  // Block timestamp
-    string  notes;      // Handler notes: location, condition, carrier info, etc.
-}
+**Core Operations**:
+- **Register Product**: Manufacturer creates a new product record with:
+  - Product name / SKU
+  - Origin / manufacturing facility
+  - Batch ID (for grouped production runs)
+  - Metadata (JSON format: expiry date, certifications, weight, category, etc.)
+
+- **Transfer Custody**: Move product between actors with:
+  - Automatic stage advancement
+  - Handler notes (location, condition, carrier info)
+  - Immutable transfer record added to audit trail
+
+- **Update Status**: Current owner marks stage changes without transferring custody
+  - Example: Distributor marks "received in warehouse" without transferring to new owner
+
+- **Mark as Sold**: Retailer finalizes product as sold to consumer (terminal action)
+
+**Provenance Trail** (Immutable Audit Log):
+- Every registration and transfer is recorded with:
+  - From/To addresses
+  - Stage at time of transfer
+  - Exact block timestamp
+  - Handler notes
+  - **Cannot be modified or deleted** — guaranteed authentic history
+
+**Safeguards**:
+- Duplicate registration prevention (same name + batch ID cannot be registered twice)
+- Sequential stage enforcement (no skipping or reversing stages)
+- Only current owner can transfer or update status
+- Products in "Sold" state cannot be modified (finalized)
+
+---
+
+#### 3. **PaymentEscrow** — Automated Secure Payments
+**Purpose**: Holds payment in escrow until delivery is confirmed
+
+**Key Concepts**:
+
+**Escrow Lifecycle**:
+```
+Pending → Released (on delivery confirmation)
+       ↓
+    Disputed → Released (admin resolves: release to seller)
+            → Refunded (admin resolves: refund to buyer)
 ```
 
-#### `ActorRegistry.sol` — Actor
+**Flow**:
+1. **Buyer Initiates**: Locks ETH in escrow for a product transfer
+2. **Funds Held**: ETH locked in contract until delivery or dispute resolution
+3. **Two Resolution Paths**:
+   - **Confirm Delivery**: Buyer confirms product received → funds released to seller
+   - **Raise Dispute**: Buyer disputes delivery → funds locked for admin arbitration
 
-```solidity
-struct Actor {
-    address wallet;       // Actor's Ethereum address (primary key)
-    string  name;         // Legal or business name
-    string  location;     // Physical location or jurisdiction
-    Role    role;         // Assigned role: Manufacturer | Supplier | Distributor | Retailer | Regulator
-    bool    isActive;     // Soft-delete flag (false = deactivated, not erased)
-    uint256 registeredAt; // Block timestamp of registration
-}
+**Admin Arbitration**:
+- Contract owner acts as neutral arbitrator
+- Reviews disputed escrows off-chain (external evidence: shipping docs, photos, etc.)
+- Decides: Release funds to seller OR refund to buyer
+
+**Safeguards**:
+- Only buyer can confirm delivery or raise dispute
+- Only admin/owner can resolve disputes
+- One active escrow per product (prevents double-escrow)
+- Reentrancy-protected using Checks-Effects-Interactions pattern
+- Both parties must be authorized actors
+
+---
+
+## Data Flow Diagram
+
 ```
+┌──────────────────────────────────────────────────────────────┐
+│                   SYSTEM COMPONENTS                          │
+└──────────────────────────────────────────────────────────────┘
 
-#### `PaymentEscrow.sol` — Escrow
-
-```solidity
-struct Escrow {
-    uint256      escrowId;   // Unique auto-incremented identifier
-    uint256      productId;  // SupplyChain product ID this payment covers
-    address payable buyer;   // Party who deposited ETH
-    address payable seller;  // Party who receives ETH on delivery confirmation
-    uint256      amount;     // ETH locked in escrow (wei), immutable after creation
-    EscrowStatus status;     // Pending | Released | Refunded | Disputed
-    uint256      createdAt;  // Block timestamp of creation
-    uint256      resolvedAt; // Block timestamp of resolution (0 if unresolved)
-}
+                    ActorRegistry
+                   ┌────────────┐
+                   │  Actors    │
+                   │  Roles     │
+                   │  Status    │
+                   └─────┬──────┘
+                         │ (validates)
+        ┌────────────────┼────────────────┐
+        ↓                ↓                ↓
+    SupplyChain     PaymentEscrow    Regulators
+    ┌─────────┐    ┌──────────┐     (read-only)
+    │Products │←──→│Escrows   │
+    │Transfers│    │Payments  │
+    │Provenance   │Disputes  │
+    └─────────┘    └──────────┘
+        ↓                ↓
+    Frontend         Analytics
+    UI/Dashboard     Off-chain indexing
 ```
 
 ---
 
-### Key Functions
+## Key Technical Features
 
-#### Registration
-| Function | Contract | Description |
-|----------|----------|-------------|
-| `registerProduct(name, origin, batchId, metadata)` | SupplyChain | Registers a new product on-chain; assigns unique ID; creates genesis provenance record |
-| `registerActor(wallet, name, location, role)` | ActorRegistry | Registers a supply chain participant with an assigned role |
+### 1. **Immutability & Audit Trail**
+- All transfer records are append-only (never deleted or modified)
+- Complete chronological history of every product
+- Blockchain guarantees authenticity (cryptographically proven)
 
-#### Transfer & Ownership
-| Function | Contract | Description |
-|----------|----------|-------------|
-| `transferProduct(productId, to, notes)` | SupplyChain | Transfers product custody to next actor; auto-advances stage |
-| `updateProductStatus(productId, newStage, notes)` | SupplyChain | Updates stage without changing owner (e.g., warehouse arrival) |
-| `markAsSold(productId, notes)` | SupplyChain | Terminal action: marks product as sold to end consumer |
+### 2. **Role-Based Access Control (RBAC)**
+- ActorRegistry validates permissions for all operations
+- Different actors can only perform role-specific actions
+- Regulators have read-only access for compliance audits
 
-#### Status & Role Management
-| Function | Contract | Description |
-|----------|----------|-------------|
-| `setActorAuthorization(actor, status)` | SupplyChain | Owner grants/revokes actor authorization |
-| `updateActorRole(wallet, newRole)` | ActorRegistry | Changes an actor's supply chain role |
-| `setActorStatus(wallet, isActive)` | ActorRegistry | Soft-activates or deactivates an actor |
+### 3. **Event-Driven Architecture**
+- Every significant action emits an indexed event:
+  - `ProductCreated`: New product registered
+  - `OwnershipTransferred`: Custody transfer between actors
+  - `StatusUpdated`: Stage change without ownership change
+  - `EscrowCreated`: Payment locked for product
+  - `FundsReleased`: Payment released on delivery confirmation
+  - `EscrowDisputed`: Dispute raised for arbitration
+- Events enable off-chain indexing (The Graph, Subgraphs)
+- External systems can listen to events in real-time
 
-#### Payment Escrow
-| Function | Contract | Description |
-|----------|----------|-------------|
-| `createEscrow(productId, seller)` | PaymentEscrow | Locks ETH for a product transaction |
-| `confirmDeliveryAndRelease(escrowId)` | PaymentEscrow | Buyer confirms delivery; releases ETH to seller |
-| `raiseDispute(escrowId)` | PaymentEscrow | Buyer flags a dispute; funds held for arbitration |
-| `resolveDispute(escrowId, releaseFunds)` | PaymentEscrow | Admin arbitrates: release to seller or refund buyer |
+### 4. **Fraud Prevention**
+- Duplicate registration guard (same product cannot be registered twice)
+- Only authorized actors can participate
+- Immutable proof of custody transfer
+- Sequential stage progression prevents skipping steps
+- Terminal "Sold" state prevents post-sale tampering
 
----
-
-### Events (State Change Logging)
-
-All major state changes emit indexed events for off-chain verification and frontend listeners:
-
-#### `SupplyChain.sol`
-```solidity
-event ProductCreated(uint256 indexed productId, string name, string batchId, address indexed manufacturer);
-event OwnershipTransferred(uint256 indexed productId, address indexed from, address indexed to, Stage stage, uint256 timestamp);
-event StatusUpdated(uint256 indexed productId, Stage oldStage, Stage newStage, address indexed updatedBy, uint256 timestamp);
-event ActorAuthorizationChanged(address indexed actor, bool authorized);
-```
-
-#### `ActorRegistry.sol`
-```solidity
-event ActorRegistered(address indexed wallet, string name, Role indexed role, string location);
-event ActorRoleUpdated(address indexed wallet, Role oldRole, Role newRole);
-event ActorStatusChanged(address indexed wallet, bool isActive);
-```
-
-#### `PaymentEscrow.sol`
-```solidity
-event EscrowCreated(uint256 indexed escrowId, uint256 indexed productId, address indexed buyer, address seller, uint256 amount);
-event FundsReleased(uint256 indexed escrowId, address indexed seller, uint256 amount);
-event FundsRefunded(uint256 indexed escrowId, address indexed buyer, uint256 amount);
-event EscrowDisputed(uint256 indexed escrowId, address indexed raisedBy, uint256 indexed productId);
-```
+### 5. **Payment Security**
+- Escrow holds funds until delivery confirmed
+- Neutral arbitration for disputes
+- Reentrancy protection using CEI pattern
+- Safe ETH transfer using low-level call with success check
 
 ---
 
-### Immutability & Verifiability
+## Use Cases
 
-- **Append-only provenance**: `_transferHistory[productId]` is a dynamic array that only grows. No delete or overwrite functions exist anywhere in the codebase.
-- **Indexed events**: Every `ProductCreated`, `OwnershipTransferred`, and `StatusUpdated` event is indexed, making them queryable via `eth_getLogs` or The Graph subgraphs.
-- **Immutable owner**: The `owner` state variable is declared `immutable` — set once at deployment and unchangeable.
-- **Terminal states**: Once a product is `Sold` or an escrow is `Released`/`Refunded`, the `notSold` and `onlyPending` modifiers block any further modifications.
+### 1. **Pharmaceutical Supply Chain**
+- Track medications from manufacturer to pharmacy
+- Prevent counterfeit drugs
+- Verify cold-chain handling (temperature-sensitive products)
+- Metadata: Batch ID, expiry date, storage conditions
+
+### 2. **Food & Beverage**
+- Track origin and freshness of products
+- Rapid recall capability (identify all units from specific batch)
+- Verify organic/fair-trade certifications
+- Metadata: Harvest date, certifications, expiry date
+
+### 3. **Luxury Goods Authentication**
+- Prove authenticity of high-value items
+- Prevent counterfeit designer goods
+- Track ownership history (resale value)
+- Metadata: Serial number, certification details
+
+### 4. **Electronics Manufacturing**
+- Track components from supplier to final assembly
+- Quality control checkpoints at each stage
+- Warranty and repair history linked to product
+- Metadata: Component specifications, certifications
+
+### 5. **Regulatory Compliance**
+- Auditors can query complete provenance at any time
+- No way to hide supply chain steps
+- Timestamped records for compliance reporting
+- Immutable proof for investigations
 
 ---
 
-### Error Handling & Safeguards
+## Technical Stack
 
-| Safeguard | Where Applied |
-|-----------|--------------|
-| Duplicate product registration (same name + batchId) | `registerProduct` — reverts via `_productIndex` hash map |
-| Duplicate actor registration (same wallet) | `registerActor` — checks `actors[wallet].role == Role.None` |
-| Phantom product ID access | `productExists` modifier — checks `exists` flag |
-| Unauthorized caller | `onlyAuthorized`, `onlyCurrentOwner` modifiers |
-| Self-transfer | `transferProduct` — `require(to != msg.sender)` |
-| Zero-address recipient | `transferProduct`, `createEscrow` — explicit zero-address checks |
-| Invalid stage transition (skipping or reverting) | `updateProductStatus` — enforces `newStage == _nextStage(current)` |
-| Actions on terminal (Sold) products | `notSold` modifier on transfer and status update functions |
-| Duplicate escrow per product | `createEscrow` — checks `productEscrow[productId] == 0` |
-| Reentrancy in ETH transfers | Checks-Effects-Interactions (CEI) pattern in `confirmDeliveryAndRelease` and `resolveDispute` |
-| Owner lockout prevention | `setActorAuthorization` and `setActorStatus` block de-authorizing the owner |
+### Smart Contracts
+- **Language**: Solidity 0.8.20
+- **Standards**: OpenZeppelin (security best practices)
+- **Blockchain**: Ethereum (EVM-compatible networks)
+- **Networks Supported**: 
+  - Localhost (Hardhat)
+  - Sepolia Testnet
+  - Polygon Mumbai (config: chainID 80002)
 
----
-
-## Dependencies
-
-### Blockchain / Smart Contracts
-- [Node.js](https://nodejs.org/) (v18+)
-- [Hardhat](https://hardhat.org/) — Ethereum development environment
-- [Solidity](https://soliditylang.org/) (^0.8.20) — Smart contract language
-- [OpenZeppelin Contracts](https://openzeppelin.com/contracts/) — Audited base libraries
-- [ethers.js](https://docs.ethers.org/) — Ethereum interaction library
+### Development Tools
+- **Hardhat**: Smart contract development & testing
+- **ethers.js**: Contract interaction library (v6)
+- **OpenZeppelin Contracts**: Secure contract primitives
 
 ### Frontend
-- [React](https://react.dev/) (v18+)
-- [Web3.js](https://web3js.org/) — Browser-to-blockchain interaction
-- [MetaMask](https://metamask.io/) — Browser wallet for signing transactions
-
-### Backend (middleware layer — planned)
-- [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/)
-- [MongoDB](https://www.mongodb.com/) — Off-chain metadata storage
+- **React 18.2**: UI framework
+- **Vite 5**: Fast build tooling
+- **ethers.js**: Blockchain interaction
+- **Web3 Integration**: MetaMask wallet connection
 
 ---
 
-## Setup Instructions
+## Installation & Deployment
 
-### 1. Clone the Repository
+### Prerequisites
 ```bash
-git clone https://github.com/YOUR_USERNAME/blockchain-supply-chain-provenance.git
-cd blockchain-supply-chain-provenance
+node --version    # v16+ required
+npm --version     # v7+
 ```
 
-### 2. Install Dependencies
+### Setup
 ```bash
-# Install root-level dependencies (Hardhat, ethers, etc.)
+# Install root dependencies
 npm install
 
 # Install frontend dependencies
 cd frontend && npm install && cd ..
-```
 
-### 3. Configure Environment
-```bash
+# Create environment file
 cp .env.example .env
-# Edit .env with your RPC URL, private key, and Etherscan API key
+# Fill in: SEPOLIA_RPC_URL, PRIVATE_KEY, PUBLIC_KEY
 ```
 
-### 4. Compile Smart Contracts
+### Deploy to Local Hardhat
 ```bash
-npx hardhat compile
+# Terminal 1: Start local blockchain
+npm run node
+
+# Terminal 2: Deploy contracts
+npm run deploy:local
 ```
 
-### 5. Run Local Blockchain & Deploy
+### Deploy to Sepolia Testnet
 ```bash
-# Terminal 1 — start local Hardhat node
-npx hardhat node
-
-# Terminal 2 — deploy all contracts to local network
-npx hardhat run scripts/deploy.js --network localhost
-```
-
-### 6. Start the Frontend
-```bash
-cd frontend
-npm start
-# Open http://localhost:3000 with MetaMask connected to localhost:8545
+npm run deploy:sepolia
 ```
 
 ---
 
-## How to Deploy (Testnet — Sepolia)
+## Presentation Talking Points
 
-> Full deployment details will be finalized during the implementation phase.
+### 1. **Problem & Motivation** (Slide 1-2)
+- Current supply chains lack transparency
+- Counterfeit products cost industries billions annually
+- No unified source of truth for product custody
+- Difficult for regulators to audit complex chains
 
-1. Fund your deployer wallet with Sepolia ETH via a faucet.
-2. Set `SEPOLIA_RPC_URL` and `PRIVATE_KEY` in your `.env` file.
-3. Deploy: `npx hardhat run scripts/deploy.js --network sepolia`
-4. Copy the three deployed contract addresses into `frontend/src/config.js`.
-5. Build the frontend: `cd frontend && npm run build`
-6. Serve or host the build folder (e.g., via Vercel, Netlify, or IPFS).
+### 2. **Solution Overview** (Slide 3-4)
+- Blockchain provides immutable record
+- Every product movement logged permanently
+- Smart contracts enforce rules automatically
+- Transparent to all authorized parties
+
+### 3. **System Architecture** (Slide 5-7)
+- Three contracts: ActorRegistry, SupplyChain, PaymentEscrow
+- ActorRegistry: Who participates and their role
+- SupplyChain: Product lifecycle and custody trail
+- PaymentEscrow: Secure financial settlement
+
+### 4. **Product Lifecycle** (Slide 8-9)
+- Five sequential stages: Manufactured → Shipped → InWarehouse → AtRetailer → Sold
+- Each transfer records: From, To, Stage, Timestamp, Notes
+- Immutable audit trail follows product forever
+- No way to hide supply chain steps
+
+### 5. **Key Features** (Slide 10-12)
+- **Immutability**: Append-only audit trail
+- **Transparency**: Public ledger of all transfers
+- **Automation**: Smart contracts enforce rules
+- **Fraud Prevention**: Duplicate registration guard, sequential stages
+- **Payment Security**: Escrow with dispute arbitration
+
+### 6. **Use Cases** (Slide 13-15)
+- Pharmaceuticals: Combat counterfeit drugs
+- Food: Rapid recall + freshness verification
+- Luxury Goods: Prove authenticity & ownership history
+- Electronics: Track components + quality checkpoints
+- Compliance: Regulator audit capability
+
+### 7. **Technical Implementation** (Slide 16-17)
+- Solidity smart contracts on Ethereum
+- Event-driven: Every action emits indexed event
+- Role-based access control (manufacturer, supplier, distributor, retailer, regulator)
+- Reentrancy-protected payment handling
+
+### 8. **Deployment & Future** (Slide 18)
+- Contracts deployed on Sepolia testnet
+- React frontend for user interaction
+- Roadmap: Off-chain indexing (The Graph), mobile app, integration with ERP systems
 
 ---
 
-## Team
+## Security Considerations
 
-| Name | Role |
-|------|------|
-| Sid Uppuluri | Research & Requirement Analysis |
-| Venkata Rohith Reddy Putha | Blockchain Architecture & Smart Contract Development |
-| Ushnesha Daripa | Backend System Development |
-| Gavin Fiedler | Frontend & UI Development |
-| Sai Sreekar Kallem | Testing, Evaluation & Documentation |
+### Implemented Safeguards
+✅ Role-based access control (ActorRegistry validation)  
+✅ Duplicate registration prevention (product key hash)  
+✅ Sequential stage enforcement (no skipping backwards)  
+✅ Immutable provenance (append-only transfer records)  
+✅ Reentrancy protection (Checks-Effects-Interactions pattern)  
+✅ Safe ETH transfer (low-level call with success check)  
+
+### Audit Recommendations
+- Code review by security auditor
+- Formal verification of stage transitions
+- Testing of edge cases (dispute resolution, actor deactivation)
+- Gas optimization review
+- Mainnet deployment only after thorough testing
+
+---
+
+## Conclusion
+
+This blockchain-based supply chain system demonstrates how distributed ledger technology can solve real-world problems:
+- **Transparency**: Complete visibility into product movement
+- **Trust**: Immutable proof replaces faith in intermediaries
+- **Efficiency**: Automated payments through escrow reduces disputes
+- **Compliance**: Regulators can audit without special access
+
+By encoding supply chain rules in smart contracts, we eliminate human error, fraud, and ambiguity—creating a system of truth rather than a system of trust.
+
+---
+
+## References
+
+- [Ethereum Smart Contracts](https://ethereum.org/en/developers/docs/smart-contracts/)
+- [Solidity Documentation](https://docs.soliditylang.org/)
+- [Hardhat Development Environment](https://hardhat.org/)
+- [ethers.js Library](https://docs.ethers.org/)
+- [OpenZeppelin Security](https://docs.openzeppelin.com/contracts/)
