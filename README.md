@@ -1,11 +1,14 @@
 # Blockchain-Based Supply Chain Provenance System
 
-## Team Members
-- **Gavin Fiedler**
-- **Sid Uppuluri**
-- **Sreekar Kallem**
-- **Ushnesha Daripa**
-- **Venkata Rohith Reddy Putha**
+## Team
+
+| Name | Role |
+|------|------|
+| Sid Uppuluri | Research & Requirement Analysis |
+| Venkata Rohith Reddy Putha | Blockchain Architecture & Smart Contract Development |
+| Ushnesha Daripa | Backend System Development |
+| Gavin Fiedler | Frontend & UI Development |
+| Sai Sreekar Kallem | Testing, Evaluation & Documentation |
 
 ---
 
