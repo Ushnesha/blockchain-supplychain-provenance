@@ -1,5 +1,14 @@
 # Blockchain-Based Supply Chain Provenance System
 
+## Team Members
+- **Gavin Fiedler**
+- **Sid Uppuluri**
+- **Sreekar Kallem**
+- **Ushnesha Daripa**
+- **Venkata Rohith Reddy Putha**
+
+---
+
 ## Executive Summary
 
 A decentralized supply chain management system built on Ethereum that provides **complete transparency and immutable traceability** of products from manufacturer to end consumer. Using blockchain technology, this system eliminates fraud, counterfeiting, and ensures regulatory compliance throughout the entire supply chain.
