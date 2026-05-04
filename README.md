@@ -14,7 +14,7 @@
 
 ## Executive Summary
 
-A decentralized supply chain management system built on Ethereum that provides **complete transparency and immutable traceability** of products from manufacturer to end consumer. Using blockchain technology, this system eliminates fraud, counterfeiting, and ensures regulatory compliance throughout the entire supply chain.
+A decentralized supply chain management application (DecAp) built on Ethereum that provides **complete transparency and immutable traceability** of products from manufacturer to end consumer. Using blockchain technology, this system eliminates fraud, counterfeiting, and ensures regulatory compliance throughout the entire supply chain.
 
 ---
 
